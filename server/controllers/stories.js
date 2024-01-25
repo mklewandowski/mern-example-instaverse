@@ -13,17 +13,20 @@ const getStories = async (req, res) => {
 
 const createStory = async (req, res) => {
     const body = req.body;
+
     const newStory = new Story({
-        ...body
+        ...body,
+        userId: req.userId,
+        postDate: new Date().toISOString()
     });
-    console.log(newStory);
+
     try {
         await newStory.save();
         res.status(201).json(newStory);
     } catch (error) {
-        console.log(error.message);
-        res.status(409).json( { message: error.message });
+        res.status(409).json({ message: error.message });
     }
+
 }
 
 const updateStory = async (req, res) => {
@@ -51,12 +54,23 @@ const deleteStory = async (req, res) => {
 const likeStory = async (req, res) => {
     const { id } = req.params;
 
+    if (!req.userId) return res.json({ message: "unauthenticated user" });
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(404).send("This id doesnt belong to any story");
     }
 
     const story = await Story.findById(id);
-    const updatedStory = await Story.findByIdAndUpdate(id, { likes: story.likes + 1}, { new: true });
+
+    const index = story.likes.findInde(id => id === String(res.userId));
+    if (index === -1) {
+        story.likes.push(req.userId);
+    } else {
+        story.likes = story.likes.filter(id => id !== String(req.userId));
+    }
+
+    const updatedStory = await Story.findByIdAndUpdate(id, story, { new: true });
+
     res.json(updatedStory);
 }
 
